@@ -96,6 +96,19 @@ namespace Avalonia
         /// This can be useful when you need a rounded-corner blurred Windows 10 app, or borderless Windows 11 app
         /// </summary>
         public float? CompositionBackdropCornerRadius { get; set; }
+
+        /// <summary>
+        /// Utilize the Microsoft GDK GameInput API to provide controller and other device navigation input. <br/>
+        /// As well as provides access to the state of the available controllers. <br/>
+        /// This requires Windows 10 with the GDK Redistributable or a recent update. 
+        /// </summary>
+        public bool UseGameInput { get; set; } = true;
+        /// <summary>
+        /// Use the Microsoft XInput API to provide controller and gamepad navigation input. <br/> 
+        /// This will also provide access to the state of the available controllers. <br/>
+        /// Requires Windows 7 and above. 
+        /// </summary>
+        public bool UseXInput { get; set; } = false;
     }
 }
 
@@ -172,6 +185,15 @@ namespace Avalonia.Win32
                 .Bind<IPlatformLifetimeEventsImpl>().ToConstant(s_instance);
 
             var gl = Win32GlManager.Initialize();
+
+            if (options.UseGameInput)
+            {
+                GameInput.GameInputProvider.TryCreateAndRegister();
+            }
+            if (GameDeviceProvider.GetCurrentProvider() is null)
+            {
+                // consider spinning up XInput provider instead 
+            }
 
             _uiThread = Thread.CurrentThread;
 
