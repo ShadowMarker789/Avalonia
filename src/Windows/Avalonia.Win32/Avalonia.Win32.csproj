@@ -17,7 +17,6 @@
     <MicroComIdl Include="Win32Com\win32.idl" CSharpInteropPath="Win32Com\Win32.Generated.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="XInput\" />
     <Compile Remove="..\..\Shared\ModuleInitializer.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildThisFileDirectory)\..\..\..\build\System.Drawing.Common.props" />

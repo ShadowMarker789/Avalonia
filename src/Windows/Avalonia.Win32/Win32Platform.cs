@@ -186,13 +186,15 @@ namespace Avalonia.Win32
 
             var gl = Win32GlManager.Initialize();
 
-            if (options.UseGameInput)
-            {
-                GameInput.GameInputProvider.TryCreateAndRegister();
-            }
+            // DEV-NOTE: REVIEW GAMEINPUT LATER WHEN THEY PATCH / FIX IT 
+            //if (options.UseGameInput)
+            //{
+            //    GameInput.GameInputProvider.TryCreateAndRegister();
+            //}
+            
             if (GameDeviceProvider.GetCurrentProvider() is null)
             {
-                // consider spinning up XInput provider instead 
+                XInput.XInputGameDeviceProvider.TryCreateAndRegister();
             }
 
             _uiThread = Thread.CurrentThread;

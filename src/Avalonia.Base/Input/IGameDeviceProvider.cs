@@ -9,7 +9,7 @@ namespace Avalonia.Input
 {
     /// <summary>
     /// Represents a service that queries and talks to game devices. <br/> 
-    /// Neither a keyboard, mouse, touchpads, or touchscreens are considered game devices for this provider. 
+    /// Keyboards, mice, touchpads, or touchscreens are not considered to be game devices. 
     /// </summary>
     [NotClientImplementable]
     public interface IGameDeviceProvider

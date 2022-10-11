@@ -11,6 +11,9 @@ using Microsoft.Gdk.GameInput;
 namespace Avalonia.Win32.GameInput
 {
 #nullable enable
+    // DEV-NOTE: GAMEINPUT IS NOT YET SUITABLE FOR END-USER CONSUMPTION 
+    // REVIEW GAMEINPUT WHEN THEY FIX / PATCH IT IN LATER RELEASES 
+    // LAST TESTED 2022-10-11 
     public class GameInputProvider : GameDeviceProvider
     {
         public override string ProviderName => "GameInput";
@@ -103,6 +106,8 @@ namespace Avalonia.Win32.GameInput
 
             if (_renderTimer is null)
             {
+                // just in case the render-timer isn't there? 
+                // I don't want to be spinning for too long or too frequently polling the gamepad 
                 _isRunning = false;
 
                 return;
@@ -110,13 +115,15 @@ namespace Avalonia.Win32.GameInput
 
             var keyboard = WindowsKeyboardDevice.Instance;
 
+            var tickHandler = (TimeSpan ts) =>
+            {
+                _tickEvent.Set();
+            };
+
             if (!_renderTimerSubscribed)
             {
                 _renderTimerSubscribed = true;
-                _renderTimer.Tick += (a) =>
-                {
-                    _tickEvent.Set();
-                };
+                _renderTimer.Tick += tickHandler;
             }
 
             System.Diagnostics.Trace.Assert(_gameInputPointer != IntPtr.Zero, "GameInput pointer is null", "I do not know why this has happened");
@@ -125,6 +132,9 @@ namespace Avalonia.Win32.GameInput
 
             ulong callbackToken = default;
 
+            // // dev-note: if you call this method on current windows system 
+            // // you break gameinput simultaneously for all processes for all users
+            // // until you restart the system 
             //input->RegisterDeviceCallback(
             //    null,
             //    _gameInputKindFilter,
@@ -159,7 +169,10 @@ namespace Avalonia.Win32.GameInput
                 }
             }
 
-            input->UnregisterCallback(callbackToken, 5000);
+            // same as above, if we register the callback everything breaks, so don't until GameInput is patched 
+            // input->UnregisterCallback(callbackToken, 5000);
+            _renderTimer.Tick -= tickHandler;
+            _renderTimerSubscribed = false;
         }
 
         private unsafe void HandleReading(IGameInputReading* reading)
@@ -279,6 +292,7 @@ namespace Avalonia.Win32.GameInput
                 if (module == IntPtr.Zero)
                 {
                     // no GameInput.dll 
+                    
                     return false;
                 }
 

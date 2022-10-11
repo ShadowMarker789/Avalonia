@@ -3,8 +3,9 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Avalonia.Win32;
+using Avalonia.Win32.NativeInteropDecorations;
 
-// developer-note: This class file was partially generated, and then modified after the fact. 
+// developer-note: This file was partially generated, and then modified after the fact. 
 // See GameInput.h located in C:\Program Files (x86)\Microsoft GDK\220601\GRDK\GameKit\Include 
 // after installing the GDK development kit (Yes, the Game Development kit development kit)
 // personal thanks goes out to Tanner Gooding and other developers for the ClangSharp project
@@ -12,6 +13,10 @@ using Avalonia.Win32;
 
 namespace Microsoft.Gdk.GameInput
 {
+#nullable enable
+
+    // dev-note: I like how the online documentation for this enum is wrong 
+    // see https://github.com/microsoft/GDK/issues/31 which I made earlier 
     public enum GameInputKind
     {
         GameInputKindUnknown = 0x00000000,
@@ -2487,34 +2492,11 @@ namespace Microsoft.Gdk.GameInput
         public string ToString(string? format, IFormatProvider? formatProvider) => Value.ToString(format, formatProvider);
     }
 
-    [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
-    [Conditional("DEBUG")]
-    internal sealed partial class VtblIndexAttribute : Attribute
-    {
-        private readonly uint _index;
-
-        /// <summary>Initializes a new instance of the <see cref="VtblIndexAttribute" /> class.</summary>
-        /// <param name="index">The vtbl index of a method as it was in the native signature.</param>
-        public VtblIndexAttribute(uint index)
-        {
-            _index = index;
-        }
-
-        /// <summary>Gets the vtbl index of a method as it was in the native signature.</summary>
-        public uint Index => _index;
-    }
-
-    internal class NativeTypeNameAttribute : Attribute
-    {
-        internal NativeTypeNameAttribute(string nativeTypeName)
-        {
-
-        }
-    }
-
     public unsafe partial struct APP_LOCAL_DEVICE_ID
     {
         [NativeTypeName("BYTE[32]")]
         public fixed byte value[32];
     }
+
+#nullable restore
 }

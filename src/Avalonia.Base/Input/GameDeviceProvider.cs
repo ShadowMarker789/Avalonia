@@ -18,6 +18,13 @@ namespace Avalonia.Input
     public abstract class GameDeviceProvider : IGameDeviceProvider
     {
         protected static GameDeviceProvider? _currentProvider;
+
+        /// <summary>
+        /// Query for a reference to the current game device provider. <br/>
+        /// There can be only up to one game device provider. May return null if there's no supported 
+        /// provider for the current platform. 
+        /// </summary>
+        /// <returns>A reference to a <see cref="GameDeviceProvider"/> if there is one registered, else null. </returns>
         public static GameDeviceProvider? GetCurrentProvider()
         => _currentProvider;
 
@@ -27,6 +34,7 @@ namespace Avalonia.Input
         protected const int MAX_BUTTON_COUNT = 32;
         protected const int MAX_AXIS_COUNT = 8;
 
+        // this is more efficient than an array, probably. 
         protected FixedBuffer8<InputState> _inputStates = new FixedBuffer8<InputState>();
 
         /// <inheritdoc/>
@@ -39,10 +47,12 @@ namespace Avalonia.Input
         public abstract void EnableUiNavigation();
         public int GetAxisCount(int deviceIndex)
         {
+            // dev-note: The uint cast will handle negative-numbers for us efficiently
             if ((uint)deviceIndex >= MAX_DEVICE_COUNT)
             {
                 throw new ArgumentOutOfRangeException(nameof(deviceIndex));
             }
+            // dev-note: fast fixed buffer access 
             return Unsafe.Add(ref _inputStates.Item0, deviceIndex).axisCount;
         }
 
@@ -102,6 +112,25 @@ namespace Avalonia.Input
             return Unsafe.Add(ref _inputStates.Item0, deviceIndex).isConnected;
         }
 
+        protected InputState GetInputState(int deviceIndex)
+        {
+            if ((uint)deviceIndex >= MAX_DEVICE_COUNT)
+            {
+                throw new ArgumentOutOfRangeException(nameof(deviceIndex));
+            }
+
+            return Unsafe.Add(ref _inputStates.Item0, deviceIndex);
+        }
+
+        protected void SetInputState(int deviceIndex, InputState state)
+        {
+            if ((uint)deviceIndex >= MAX_DEVICE_COUNT)
+            {
+                throw new ArgumentOutOfRangeException(nameof(deviceIndex));
+            }
+            Unsafe.Add(ref _inputStates.Item0, deviceIndex) = state;
+        }
+
         public abstract void Start();
         public abstract void Stop();
 
@@ -123,6 +152,7 @@ namespace Avalonia.Input
 
         }
 
+        // faster than an array, possibly. 
         [StructLayout(LayoutKind.Sequential)]
         protected struct FixedBuffer8<T>
         {
