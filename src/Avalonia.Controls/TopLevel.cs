@@ -95,6 +95,7 @@ namespace Avalonia.Controls
         private Border? _transparencyFallbackBorder;
         private TargetWeakEventSubscriber<TopLevel, ResourcesChangedEventArgs>? _resourcesChangesSubscriber;
         private IStorageProvider? _storageProvider;
+        private IControllerDeviceList? _controllerDeviceList;
         
         /// <summary>
         /// Initializes static members of the <see cref="TopLevel"/> class.
@@ -151,6 +152,7 @@ namespace Avalonia.Controls
             _keyboardNavigationHandler = TryGetService<IKeyboardNavigationHandler>(dependencyResolver);
             _renderInterface = TryGetService<IPlatformRenderInterface>(dependencyResolver);
             _globalStyles = TryGetService<IGlobalStyles>(dependencyResolver);
+            _controllerDeviceList = TryGetService<IControllerDeviceList>(dependencyResolver);
 
             Renderer = impl.CreateRenderer(this);
 
@@ -284,6 +286,11 @@ namespace Avalonia.Controls
         /// Gets the renderer for the window.
         /// </summary>
         public IRenderer Renderer { get; private set; }
+
+        public IControllerDeviceList? ControllerDevices
+        {
+            get => _controllerDeviceList;
+        }
 
         internal PixelPoint? LastPointerPosition => _pointerOverPreProcessor?.LastPosition;
         

@@ -12,9 +12,13 @@
   <ItemGroup>
     <ProjectReference Include="..\Avalonia.Controls\Avalonia.Controls.csproj" />
     <ProjectReference Include="..\Avalonia.Dialogs\Avalonia.Dialogs.csproj" />
+    <PackageReference Include="NativeLibraryLoader" Version="1.0.12"
+		Condition="'$(TargetFramework)' == 'netstandard2.0'"
+	/>
     <PackageReference Include="Tmds.DBus" Version="0.9.0" />
   </ItemGroup>
   <ItemGroup Label="InternalsVisibleTo">
     <InternalsVisibleTo Include="Avalonia.X11, PublicKey=$(AvaloniaPublicKey)" />
   </ItemGroup>
+  <Import Project="..\Avalonia.LibudevGamepad\Avalonia.LibudevGamepad.projitems" Label="Shared" />
 </Project>

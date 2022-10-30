@@ -8,5 +8,11 @@
     <ProjectReference Include="..\..\..\packages\Avalonia\Avalonia.csproj" />
     <ProjectReference Include="..\..\Skia\Avalonia.Skia\Avalonia.Skia.csproj" />
     <Compile Include="..\..\Shared\RawEventGrouping.cs" />
-  </ItemGroup>  
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="NativeLibraryLoader" Version="1.0.12"
+		Condition="'$(TargetFramework)' == 'netstandard2.0'"
+	/>
+  </ItemGroup>
+  <Import Project="..\..\Avalonia.LibudevGamepad\Avalonia.LibudevGamepad.projitems" Label="Shared" />  
 </Project>
