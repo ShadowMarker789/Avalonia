@@ -9,6 +9,7 @@ using System.Text;
 using Windows.Win32;
 using Windows.Win32.Graphics.Gdi;
 using MicroCom.Runtime;
+using System.Runtime.CompilerServices;
 
 // ReSharper disable InconsistentNaming
 #pragma warning disable 169, 649
@@ -1779,6 +1780,16 @@ namespace Avalonia.Win32.Interop
 
         [DllImport("user32.dll")]
         public static extern bool SetLayeredWindowAttributes(IntPtr hwnd, uint crKey, byte bAlpha, LayeredWindowFlags dwFlags);
+        [DllImport("user32", ExactSpelling = true)]
+        public static extern uint GetRawInputData(IntPtr hRawInput, uint uiCommand, IntPtr pData, uint* pcbSize, uint cbSizeHeader);
+        [DllImport("user32", ExactSpelling = true)]
+        public static extern int RegisterRawInputDevices(RAWINPUTDEVICE* pRawInputDevices, uint uiNumDevices, uint cbSize);
+        [DllImport("user32", ExactSpelling = true)]
+        public static extern uint GetRawInputDeviceInfoW(IntPtr hDevice, uint uiCommand, void* pData, uint* pcbSize);
+        [DllImport("kernel32", ExactSpelling = true)]
+        public static extern IntPtr CreateFileW(ushort* lpFileName, uint dwDesiredAccess, uint dwShareMode, SECURITY_ATTRIBUTES* lpSecurityAttributes, uint dwCreationDisposition, uint dwFlagsAndAttributes, IntPtr hTemplateFile);
+        [DllImport("hid", ExactSpelling = true)]
+        public static extern byte HidD_GetProductString(IntPtr HidDeviceObject, void* Buffer, uint BufferLength);
 
         [Flags]
         public enum DWM_BB
@@ -2658,4 +2669,94 @@ namespace Avalonia.Win32.Interop
         public string? szInfoTitle;
         public NIIF dwInfoFlags;
     }
+#pragma warning disable CA1815 // Override equals and operator equals on value types -- unneeded on internal types
+    public struct RAWINPUT
+    {
+        public RAWINPUTHEADER header;
+        public RAWINPUT__INTERNAL__UNION data;
+
+        [StructLayout(LayoutKind.Explicit)]
+        public struct RAWINPUT__INTERNAL__UNION
+        {
+            [FieldOffset(0)]
+            public RAWMOUSE mouse;
+            [FieldOffset(0)]
+            public RAWKEYBOARD keyboard;
+            [FieldOffset(0)]
+            public RAWHID hid;
+        }
+    }
+
+    public struct RAWINPUTHEADER
+    {
+        public uint dwType;
+        public uint dwSize;
+        public IntPtr hDevice;
+        public IntPtr wParam;
+    }
+
+    public struct RAWMOUSE
+    {
+        public ushort usFlags;
+        // See C:/Program Files (x86)/Windows Kits/10/include/10.0.22621.0/um/WinUser.h:14948:5
+        public RAWMOUSE_INTERNAL_UNION Anonymous;
+        public uint ulRawButtons;
+        public int lLastX;
+        public int lLastY;
+        public uint ulExtraInformation;
+        [UnscopedRef]
+        public ref uint ulButtons => ref Anonymous.ulButtons;
+        [UnscopedRef]
+        public ref ushort usButtonFlags => ref Anonymous.Anonymous.usButtonFlags;
+        [UnscopedRef]
+        public ref ushort usButtonData => ref Anonymous.Anonymous.usButtonData;
+
+        [StructLayout(LayoutKind.Explicit)]
+        public struct RAWMOUSE_INTERNAL_UNION
+        {
+            [FieldOffset(0)]
+            public uint ulButtons;
+            // See C:/Program Files (x86)/Windows Kits/10/include/10.0.22621.0/um/WinUser.h:14950:9)
+            [FieldOffset(0)]
+            public RAWMOUSE_INTERNAL_UNION_2 Anonymous;
+            public struct RAWMOUSE_INTERNAL_UNION_2
+            {
+                public ushort usButtonFlags;
+                public ushort usButtonData;
+            }
+        }
+    }
+
+    public struct RAWKEYBOARD
+    {
+        public ushort MakeCode;
+        public ushort Flags;
+        public ushort Reserved;
+        public ushort VKey;
+        public uint Message;
+        public uint ExtraInformation;
+    }
+
+    public unsafe struct RAWHID
+    {
+        public uint dwSizeHid;
+        public uint dwCount;
+        public fixed byte bRawData[1];
+    }
+
+    public struct RAWINPUTDEVICE
+    {
+        public ushort usUsagePage;
+        public ushort usUsage;
+        public uint dwFlags;
+        public IntPtr hwndTarget;
+    }
+
+    public unsafe partial struct SECURITY_ATTRIBUTES
+    {
+        public uint nLength;
+        public void* lpSecurityDescriptor;
+        public int bInheritHandle;
+    }
+#pragma warning restore CA1815 // Override equals and operator equals on value types -- unneeded on internal types
 }
