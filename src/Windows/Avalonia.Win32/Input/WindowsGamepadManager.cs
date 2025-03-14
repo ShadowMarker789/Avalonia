@@ -24,10 +24,14 @@ namespace Avalonia.Win32.Input
         private const int RIDEV_INPUTSINK = 0x00000100;
         private const int RIDEV_DEVNOTIFY = 0x00002000;
         private const int RIDI_DEVICENAME = 0x20000007;
+        private const int XINPUT_MAX_DEVICES = 4;
         private static readonly IntPtr INVALID_HANDLE_VALUE = new IntPtr(-1);
         private SimpleWindow? _simpleWindow;
         private Thread _messagePumpThread;
         private List<InternalGamepadData> _knownDevices = new();
+        private int _currentXInputIndex = 0;
+
+        public double GamepadAnalogStickDeadZone { get; set; } = 0.08;
 
         public WindowsGamepadManager()
         {
@@ -92,7 +96,7 @@ namespace Avalonia.Win32.Input
                         // Turns out this isn't an HRESULT (haha)
                         // See: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getrawinputdata
                         var result = UnmanagedMethods.GetRawInputData(lparam, RID_INPUT, (IntPtr)(&rwInput), &rwInputSize, (uint)(sizeof(RAWINPUTHEADER)));
-                        if (result == unchecked((uint)-1))
+                        if (result == unchecked((uint)-1)) // yeah, apparently it is just -1 but a uint 
                         {
                             // an error has occurred 
                             // TODO: Log error
@@ -182,26 +186,32 @@ namespace Avalonia.Win32.Input
                 UnmanagedMethods.CloseHandle(handle);
                 data = new InternalGamepadData(_knownDevices.Count, deviceName, humanName, isXInputDevice);
                 data.LastHandle = deviceHandle;
+                if (isXInputDevice)
+                {
+                    data.XInputDeviceIndex = _currentXInputIndex;
+                    _currentXInputIndex++;
+                    if (_currentXInputIndex > 3)
+                    {
+                        // you know, theoretically someone could have like, thousands of xbox controllers
+                        // and connect four of them up, and then disconnect them all and then start 
+                        // connecting other controllers 
+                        // and we're supposed to keep the same xinput index for devices known to us
+                        // yet also xinput doesn't give us identifying information about each device
+                        // So this is an impossible problem, and we're trying our best
+                        _currentXInputIndex = 0;
+                    }
+                }
                 _knownDevices.Add(data);
 
                 Trace.WriteLine($"New Device! [{humanName}] is {(isXInputDevice ? "" : "NOT ")}an XInput device!");
+                data.EventTracking = GamepadEventArgs.GamepadEventType.Initialized;
             }
             else
             {
+                data.EventTracking = GamepadEventArgs.GamepadEventType.Reconnected;
                 Trace.WriteLine($"Recognized Device! [{data.HumanName}] is {(data.IsXInputDevice ? "" : "NOT ")} an XInput device!");
             }
-            PushGamepadEvent(
-                new GamepadEventArgs()
-                {
-                    Connected = data.IsConnected,
-                    Device = data.Index,
-                    HumanName = data.HumanName,
-                    Id = data.Id,
-                    Timestamp = data.Timestamp,
-                    Source = this,
-                    EventType = data.EventTracking
-                }
-            );
+            PushUpdate(data);
         }
 
         private void RawInputDeviceRemoved(IntPtr deviceHandle)
@@ -211,18 +221,10 @@ namespace Avalonia.Win32.Input
                 var data = _knownDevices[i];
                 if (data.LastHandle == deviceHandle)
                 {
-                    PushGamepadEvent(
-                        new GamepadEventArgs()
-                        {
-                            Connected = data.IsConnected,
-                            Device = data.Index,
-                            HumanName = data.HumanName,
-                            Id = data.Id,
-                            Timestamp = data.Timestamp,
-                            Source = this,
-                            EventType = data.EventTracking
-                        }
-                    );
+                    data.LastState = default;
+                    data.EventTracking = GamepadEventArgs.GamepadEventType.Disconnected;
+                    data.IsConnected = false;
+                    PushUpdate(data);
                 }
             }
         }
@@ -234,14 +236,86 @@ namespace Avalonia.Win32.Input
                 var data = _knownDevices[i];
                 if (rawInputEvent.header.hDevice == data.LastHandle)
                 {
-                    Trace.WriteLine("State change!");
+                    if (data.IsXInputDevice)
+                    {
+                        return;
+                    }
+                    else
+                    {
+                        // TODO: Mapping and bindings operations
+                    }
                 }
             }
         }
 
-        private void DoXInput()
+        private unsafe void DoXInput()
         {
+            XINPUT_STATE state = default;
+            for (uint xinputIndex = 0; xinputIndex < XINPUT_MAX_DEVICES; xinputIndex++)
+            {
+                uint status = UnmanagedMethods.XINPUT_GET_STATE(xinputIndex, &state);
+                if (status == UnmanagedMethods.ERROR_DEVICE_NOT_CONNECTED)
+                {
+                    // uninterested, raw-input will tell us when the device is disconnected/. 
+                }
+                else if (status == 0x0) // ERROR_SUCCESS :) 
+                {
+                    // report device status update
+                    for (int ii = 0; ii < _knownDevices.Count; ii++)
+                    {
+                        var data = _knownDevices[ii];
+                        if (data.XInputDeviceIndex == xinputIndex)
+                        {
+                            if (data.XInputDwPacketNumber != state.dwPacketNumber)
+                            {
+                                data.XInputDwPacketNumber = state.dwPacketNumber;
+                                data.EventTracking = GamepadEventArgs.GamepadEventType.StateChange;
+                                var gamepadState = new GamepadState();
+                                gamepadState.LeftAnalogStick = DualAxisHandle(state.Gamepad.sThumbLX, state.Gamepad.sThumbLY, GamepadAnalogStickDeadZone);
+                                gamepadState.RightAnalogStick = DualAxisHandle(state.Gamepad.sThumbRX, state.Gamepad.sThumbRY, GamepadAnalogStickDeadZone);
+                                var buttons = state.Gamepad.wButtons;
 
+                                SetButtonFromXInput(ref gamepadState, GamepadButton.Button0, buttons);
+                                SetButtonFromXInput(ref gamepadState, GamepadButton.Button1, buttons);
+                                SetButtonFromXInput(ref gamepadState, GamepadButton.Button2, buttons);
+                                SetButtonFromXInput(ref gamepadState, GamepadButton.Button3, buttons);
+                                SetButtonFromXInput(ref gamepadState, GamepadButton.Button4, buttons);
+                                SetButtonFromXInput(ref gamepadState, GamepadButton.Button5, buttons);
+                                // NOTE - Buttons 6 and 7 are left-trigger and right-trigger, and are analog on XInput 
+                                gamepadState.SetButtonState(GamepadButton.Button6, GetNewButtonState(gamepadState.GetButtonState(GamepadButton.Button6), state.Gamepad.bLeftTrigger / 255f));
+                                gamepadState.SetButtonState(GamepadButton.Button7, GetNewButtonState(gamepadState.GetButtonState(GamepadButton.Button7), state.Gamepad.bRightTrigger / 255f));
+                                SetButtonFromXInput(ref gamepadState, GamepadButton.Button8, buttons);
+                                SetButtonFromXInput(ref gamepadState, GamepadButton.Button9, buttons);
+                                SetButtonFromXInput(ref gamepadState, GamepadButton.Button10, buttons);
+                                SetButtonFromXInput(ref gamepadState, GamepadButton.Button11, buttons);
+                                SetButtonFromXInput(ref gamepadState, GamepadButton.Button12, buttons);
+                                SetButtonFromXInput(ref gamepadState, GamepadButton.Button13, buttons);
+                                SetButtonFromXInput(ref gamepadState, GamepadButton.Button14, buttons);
+                                SetButtonFromXInput(ref gamepadState, GamepadButton.Button15, buttons);
+                                data.LastState = gamepadState;
+                                PushUpdate(data);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private void PushUpdate(InternalGamepadData data)
+        {
+            PushGamepadEvent(
+                new GamepadEventArgs()
+                {
+                    Connected = data.IsConnected,
+                    Device = data.Index,
+                    HumanName = data.HumanName,
+                    Id = data.Id,
+                    Timestamp = DateTime.Now,
+                    Source = this,
+                    EventType = data.EventTracking,
+                    State = data.LastState,
+                }
+            );
         }
 
         private class InternalGamepadData
@@ -259,9 +333,145 @@ namespace Avalonia.Win32.Input
             public bool IsXInputDevice { get; set; }
             public bool IsConnected { get; set; }
             public GamepadEventArgs.GamepadEventType EventTracking { get; set; }
+            public GamepadState LastState { get; set; }
             public DateTime Timestamp { get; set; }
             public IntPtr LastHandle { get; set; }
             public int XInputDeviceIndex { get; set; } = -1;
+            public uint XInputDwPacketNumber { get; set; }
+        }
+
+        private ushort XInputFlagFromGamepadButton(GamepadButton button)
+        {
+            switch (button)
+            {
+                case GamepadButton.Button0:
+                    return 4096;
+                case GamepadButton.Button1:
+                    return 8192;
+                case GamepadButton.Button2:
+                    return 16384;
+                case GamepadButton.Button3:
+                    return 32768;
+                case GamepadButton.Button4:
+                    return 256;
+                case GamepadButton.Button5:
+                    return 512;
+                case GamepadButton.Button6:
+                case GamepadButton.Button7:
+                default:
+                    throw new Exception("Okay, these aren't XInput buttons, sorry! Programmer error!");
+                case GamepadButton.Button8:
+                    return 32;
+                case GamepadButton.Button9:
+                    return 16;
+                case GamepadButton.Button10:
+                    return 64;
+                case GamepadButton.Button11:
+                    return 128;
+                case GamepadButton.Button12:
+                    return 1;
+                case GamepadButton.Button13:
+                    return 2;
+                case GamepadButton.Button14:
+                    return 4;
+                case GamepadButton.Button15:
+                    return 8;
+            }
+        }
+
+        private void SetButtonFromXInput(ref GamepadState target, GamepadButton button, ushort xinputButtons)
+        {
+            var flag = XInputFlagFromGamepadButton(button);
+            var previousState = target.GetButtonState(button);
+            if (IsMatch(xinputButtons, flag))
+            {
+                // we know that the button is pressed 
+                target.SetButtonState(button, new ButtonState() 
+                { 
+                    JustPressed = previousState.Pressed ? false : true,
+                    Value = 1.0d,
+                    JustReleased = false,
+                    Touched = true,
+                    Pressed = true,
+                }
+                );
+            }
+            else
+            {
+                // we know that the button is released 
+                target.SetButtonState(button, new ButtonState()
+                {
+                    JustPressed = false,
+                    Value = 0.0d,
+                    JustReleased = previousState.Pressed ? true : false,
+                    Touched = false,
+                    Pressed = false,
+                }
+                );
+            }
+        }
+
+        private ButtonState GetNewButtonState(ButtonState previousState, double newValue)
+        {
+            if (newValue > 0)
+            {
+                // we know that the button is at least touched 
+                return new ButtonState()
+                {
+                    JustPressed = previousState.Pressed ? false : true,
+                    Value = newValue,
+                    JustReleased = false,
+                    Touched = true,
+                    Pressed = newValue > 0.5,
+                };
+            }
+            else
+            {
+                // we know that the button is released 
+                return new ButtonState()
+                {
+                    JustPressed = false,
+                    Value = 0.0d,
+                    JustReleased = previousState.Pressed ? true : false,
+                    Touched = false,
+                    Pressed = false,
+                };
+            }
+        }
+
+        private bool IsMatch(ushort buttonState, ushort stateToCheck) => (buttonState & stateToCheck) == stateToCheck;
+
+        private Vector DualAxisHandle(short xAxis, short yAxis, double deadZone)
+        {
+            double x = ShortAxisToDouble(xAxis);
+            double y = ShortAxisToDouble(yAxis);
+
+            double mag = Math.Sqrt(x * x + y * y);
+
+            if (Math.Abs(mag) < deadZone)
+            { return new(0.0f, 0.0f); }
+
+            if (mag > 1.0f)
+                mag = 1.0f;
+            var directionRads = Math.Atan2(y, x);
+
+            mag = Linear(mag, deadZone, 1.0f, 0.0f, 1.0f);
+
+            return new(Math.Cos(directionRads) * mag, Math.Sin(directionRads) * mag);
+        }
+
+        private static double Linear(double x, double x0, double x1, double y0, double y1)
+        {
+            if ((x1 - x0) == 0)
+            {
+                return (y0 + y1) / 2;
+            }
+            return y0 + (x - x0) * (y1 - y0) / (x1 - x0);
+        }
+
+        private static double ShortAxisToDouble(short axisValue)
+        {
+            return axisValue > 0 ? axisValue / (double)short.MaxValue : axisValue / (double)Math.Abs((double)short.MinValue);
         }
     }
 }

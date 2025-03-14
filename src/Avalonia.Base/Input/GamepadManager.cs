@@ -34,7 +34,7 @@ namespace Avalonia.Input
         public static readonly RoutedEvent GamepadStateChanged;
         static GamepadManager()
         {
-            GamepadStateChanged = RoutedEvent.Register<GamepadManager,GamepadEventArgs>(nameof(GamepadStateChanged), RoutingStrategies.Tunnel | RoutingStrategies.Bubble);
+            GamepadStateChanged = RoutedEvent.Register<GamepadManager, GamepadEventArgs>(nameof(GamepadStateChanged), RoutingStrategies.Tunnel | RoutingStrategies.Bubble);
         }
 
         private readonly LightweightSubject<GamepadEventArgs> _gamepadStream = new();
@@ -42,8 +42,17 @@ namespace Avalonia.Input
 
         public void PushGamepadEvent(GamepadEventArgs args)
         {
+            if (_currentState.Count <= args.Device)
+            {
+                _currentState.Add(args.State);
+            }
+            else
+            {
+                _currentState[args.Device] = args.State;
+            }
+
             // question - if I use Post instead of Invoke will events end up out of order?
-            Dispatcher.UIThread.Invoke(() =>
+            Dispatcher.UIThread.Post(() =>
             {
                 _gamepadStream.OnNext(args);
             });

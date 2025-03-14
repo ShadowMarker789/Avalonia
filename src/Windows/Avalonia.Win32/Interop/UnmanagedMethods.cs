@@ -1791,6 +1791,70 @@ namespace Avalonia.Win32.Interop
         [DllImport("hid", ExactSpelling = true)]
         public static extern byte HidD_GetProductString(IntPtr HidDeviceObject, void* Buffer, uint BufferLength);
 
+        // XINPUT prefer v 1.4 (Ships with Windows 8, I think it was available with the SDK in Windows 7 SP1? 
+        // Fallback to 0.9.3 otherwise 
+
+        public unsafe delegate uint _XINPUT_IMPL_TYPE(uint dwUserIndex, XINPUT_STATE* state);
+
+        private static _XINPUT_IMPL_TYPE? _XINPUT_IMPL;
+        public const int ERROR_DEVICE_NOT_CONNECTED = 1167;
+        public static void XINPUT_LOADER_INIT()
+        {
+            IntPtr getState = IntPtr.Zero;
+            var xinput1_4 = LoadLibrary("xinput1_4.dll");
+            if (xinput1_4 == IntPtr.Zero)
+            {
+                var xinput_9_1 = LoadLibrary("xinput9_1_0.dll");
+                if (xinput_9_1 == IntPtr.Zero)
+                {
+                    // I am very unhappy about this. 
+                    return;
+                }
+                else
+                {
+                    getState = GetProcAddress(xinput_9_1, "XInputGetState");
+                    if (getState == IntPtr.Zero)
+                    {
+                        // I am very unhappy about this. 
+                        return;
+                    }
+                    else
+                    {
+                        _XINPUT_IMPL = Marshal.GetDelegateForFunctionPointer<_XINPUT_IMPL_TYPE>(getState);
+                    }
+                }
+            }
+            else
+            {
+                getState = GetProcAddress(xinput1_4, "XInputGetState");
+                if (getState == IntPtr.Zero)
+                {
+                    // I am very unhappy about this.
+                    return;
+                }
+                else
+                {
+                    _XINPUT_IMPL = Marshal.GetDelegateForFunctionPointer<_XINPUT_IMPL_TYPE>(getState);
+                }
+            }
+        }
+        // Used upper-case as if this were a Macro of sorts, but it's not. 
+        public static uint XINPUT_GET_STATE(uint dwUserIndex, XINPUT_STATE* pState)
+        {
+            if (_XINPUT_IMPL is null)
+            {
+                XINPUT_LOADER_INIT();
+            }
+            if (_XINPUT_IMPL is null)
+            {
+                // Okay wow there's no XInput on this computer?
+                // Theoretically possible, but Windows XP ships with XInput v 9.1 so... ????
+                // Just report all devices are not connected I suppose? 
+                return ERROR_DEVICE_NOT_CONNECTED;
+            }
+            return _XINPUT_IMPL(dwUserIndex, pState);
+        }
+
         [Flags]
         public enum DWM_BB
         {
@@ -2757,6 +2821,23 @@ namespace Avalonia.Win32.Interop
         public uint nLength;
         public void* lpSecurityDescriptor;
         public int bInheritHandle;
+    }
+
+    public struct XINPUT_STATE
+    {
+        public uint dwPacketNumber;
+        public XINPUT_GAMEPAD Gamepad;
+    }
+
+    public struct XINPUT_GAMEPAD
+    {
+        public ushort wButtons;
+        public byte bLeftTrigger;
+        public byte bRightTrigger;
+        public short sThumbLX;
+        public short sThumbLY;
+        public short sThumbRX;
+        public short sThumbRY;
     }
 #pragma warning restore CA1815 // Override equals and operator equals on value types -- unneeded on internal types
 }

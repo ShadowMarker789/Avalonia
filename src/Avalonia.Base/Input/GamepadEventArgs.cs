@@ -69,9 +69,13 @@ namespace Avalonia.Input
         public Vector LeftAnalogStick { get; internal set; }
         public Vector RightAnalogStick { get; internal set; }
         private GamepadButtons _buttons;
-        public ButtonState GetButtonState(GamepadButtonsList button) 
+        public ButtonState GetButtonState(GamepadButton button) 
         {
             return _buttons[(int)button];
+        }
+        public void SetButtonState(GamepadButton button, ButtonState state)
+        {
+            _buttons[(int)button] = state;
         }
 
         public override bool Equals(object? obj)
@@ -110,7 +114,7 @@ namespace Avalonia.Input
         }
     }
 
-    public enum GamepadButtonsList
+    public enum GamepadButton
     {
         /// <summary>
         /// X (PS5), A (Xbox), B (Switch)
@@ -179,6 +183,7 @@ namespace Avalonia.Input
     }
 
 #pragma warning disable CA1823 // Avoid unused private fields
+#pragma warning disable CA1815 // should implement equals
     // this struct is a glorified fixed-buffer and these "unused fields" will be used. 
     public struct GamepadButtons
     {
@@ -210,15 +215,26 @@ namespace Avalonia.Input
                 // unsafe black magic because NS2.0 doesn't support MemoryMarshal.CreateSpan 
                 return Unsafe.Add(ref _0, index);
             }
+            set
+            {
+                if (index < 0)
+                    throw new IndexOutOfRangeException();
+                if (index > 15)
+                    throw new IndexOutOfRangeException();
+                // unsafe black magic because NS2.0 doesn't support MemoryMarshal.CreateSpan 
+                Unsafe.Add(ref _0, index) = value;
+            }
         }
     }
 #pragma warning restore CA1823 // Avoid unused private fields
+#pragma warning restore CA1815 // Avoid unused private fields
 
     public struct ButtonState : IEquatable<ButtonState>
     {
         public bool Pressed { get; set; }
         public bool Touched { get; set; }
         public bool JustPressed { get; set; }
+        public bool JustReleased { get; set; }
         public double Value { get; set; }
 
         public readonly override bool Equals(object? obj)
@@ -254,49 +270,6 @@ namespace Avalonia.Input
         }
 
         public static bool operator !=(ButtonState left, ButtonState right)
-        {
-            return !(left == right);
-        }
-    }
-
-    public struct GamepadAxis : IEquatable<GamepadAxis>
-    {
-        public double X { get; set; }
-        public double Y { get; set; }
-        public double Z { get; set; }
-
-        public readonly Vector As2d { get => new(X, Y); }
-
-        public override readonly bool Equals(object? obj)
-        {
-            return obj is GamepadAxis axis && Equals(axis);
-        }
-
-        public readonly bool Equals(GamepadAxis axis)
-        {
-            return X == axis.X &&
-                   Y == axis.Y &&
-                   Z == axis.Z;
-        }
-
-        public override readonly int GetHashCode()
-        {
-#if NETSTANDARD2_0
-            var hashCode = new HashCode();
-            hashCode.Add(X);
-            hashCode.Add(Y);
-            hashCode.Add(Z);
-            return hashCode.GetHashCode();
-#else
-            return HashCode.Combine(X, Y, Z);
-#endif
-        }
-        public static bool operator ==(GamepadAxis left, GamepadAxis right)
-        {
-            return left.Equals(right);
-        }
-
-        public static bool operator !=(GamepadAxis left, GamepadAxis right)
         {
             return !(left == right);
         }
