@@ -13,7 +13,6 @@
     <TabControl>
       <TabItem Header="Gamepads">
         <DockPanel>
-          <TextBlock x:Name="TestingTextBlock" DockPanel.Dock="Top"/>
           <ItemsControl x:Name="GamepadsItemsControl" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Disabled">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>

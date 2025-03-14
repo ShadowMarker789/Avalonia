@@ -209,8 +209,12 @@ namespace Avalonia.Win32.Input
             else
             {
                 data.EventTracking = GamepadEventArgs.GamepadEventType.Reconnected;
+                data.LastHandle = deviceHandle;
                 Trace.WriteLine($"Recognized Device! [{data.HumanName}] is {(data.IsXInputDevice ? "" : "NOT ")} an XInput device!");
             }
+
+            data.IsConnected = true;
+
             PushUpdate(data);
         }
 

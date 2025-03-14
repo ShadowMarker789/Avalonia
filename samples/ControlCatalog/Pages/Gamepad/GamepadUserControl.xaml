@@ -17,6 +17,8 @@
         <RowDefinition Height="80"/>
       </Grid.RowDefinitions>
 
+      <TextBlock x:Name="DisconnectedTextBlock" HorizontalAlignment="Center" VerticalAlignment="Top" TextAlignment="Center"/>
+      
       <Grid ColumnDefinitions="*,*,*" Grid.Row="1">
         <Panel Width="80" Height="80" >
           <local:TwoAxisDrawer Width="80" Height="80" Value="{Binding #GamepadUserControlRoot.LeftStick}" />

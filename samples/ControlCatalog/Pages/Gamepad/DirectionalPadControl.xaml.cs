@@ -53,7 +53,11 @@ namespace ControlCatalog.Pages
 
         public void ReceiveUpdate(GamepadEventArgs args)
         {
-
+            var state = args.State;
+            PadUp = state.GetButtonState(GamepadButton.Button12).Pressed;
+            PadDown = state.GetButtonState(GamepadButton.Button13).Pressed;
+            PadLeft = state.GetButtonState(GamepadButton.Button14).Pressed;
+            PadRight = state.GetButtonState(GamepadButton.Button15).Pressed;
         }
     }
 }

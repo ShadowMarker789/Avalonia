@@ -41,8 +41,6 @@ namespace ControlCatalog.Pages
 
         public void OnNext(GamepadEventArgs value)
         {
-            TestingTextBlock.Text = $"{value.State.LeftAnalogStick}";
-            
             if (Gamepads.Count <= value.Device)
             {
                 var control = new GamepadUserControl();
@@ -65,7 +63,6 @@ namespace ControlCatalog.Pages
         private void InitializeComponent()
         {
             AvaloniaXamlLoader.Load(this);
-            TestingTextBlock = this.Get<TextBlock>(nameof(TestingTextBlock));
             GamepadsItemsControl = this.Get<ItemsControl>(nameof(GamepadsItemsControl));
         }
     }

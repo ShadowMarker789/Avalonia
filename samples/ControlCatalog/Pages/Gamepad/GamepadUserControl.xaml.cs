@@ -112,6 +112,7 @@ namespace ControlCatalog.Pages
         }
 
         private DirectionalPadControl DPadControl { get; set; }
+        private TextBlock DisconnectedTextBlock { get; set; }
 
         public GamepadUserControl()
         {
@@ -122,6 +123,7 @@ namespace ControlCatalog.Pages
         {
             AvaloniaXamlLoader.Load(this);
             DPadControl = this.Find<DirectionalPadControl>(nameof(DPadControl))!;
+            DisconnectedTextBlock = this.Find<TextBlock>(nameof(DisconnectedTextBlock))!;
         }
 
         public void ReceiveUpdate(GamepadEventArgs args)
@@ -142,6 +144,15 @@ namespace ControlCatalog.Pages
             LeftClick = state.GetButtonState(GamepadButton.Button10).Pressed;
             RightClick = state.GetButtonState(GamepadButton.Button11).Pressed;
             DPadControl.ReceiveUpdate(args);
+
+            if (args.Connected)
+            {
+                DisconnectedTextBlock.Text = $"[{args.Device}]: [{args.HumanName}]";
+            }
+            else
+            {
+                DisconnectedTextBlock.Text = $"[{args.Device}]: [{args.HumanName}] DEVICE LOST!";
+            }
         }
     }
 
