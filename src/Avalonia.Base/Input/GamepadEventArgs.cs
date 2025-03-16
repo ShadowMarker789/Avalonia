@@ -64,7 +64,7 @@ namespace Avalonia.Input
         }
     }
 
-    public struct GamepadState : IEquatable<GamepadState>
+    public record struct GamepadState : IEquatable<GamepadState>
     {
         public Vector LeftAnalogStick { get; internal set; }
         public Vector RightAnalogStick { get; internal set; }
@@ -76,41 +76,6 @@ namespace Avalonia.Input
         public void SetButtonState(GamepadButton button, ButtonState state)
         {
             _buttons[(int)button] = state;
-        }
-
-        public override bool Equals(object? obj)
-        {
-            return obj is GamepadState state && Equals(state);
-        }
-
-        public bool Equals(GamepadState state)
-        {
-            return LeftAnalogStick.Equals(state.LeftAnalogStick) &&
-                   RightAnalogStick.Equals(state.RightAnalogStick) &&
-                   EqualityComparer<GamepadButtons>.Default.Equals(_buttons, state._buttons);
-        }
-
-        public override int GetHashCode()
-        {
-#if NETSTANDARD
-            HashCode hc = new();
-            hc.Add(LeftAnalogStick);
-            hc.Add(RightAnalogStick);
-            hc.Add(_buttons);
-            return hc.ToHashCode();
-#else
-            return HashCode.Combine(LeftAnalogStick.GetHashCode(), RightAnalogStick.GetHashCode(), _buttons.GetHashCode());
-#endif
-        }
-
-        public static bool operator ==(GamepadState left, GamepadState right)
-        {
-            return left.Equals(right);
-        }
-
-        public static bool operator !=(GamepadState left, GamepadState right)
-        {
-            return !(left == right);
         }
     }
 
@@ -227,51 +192,14 @@ namespace Avalonia.Input
         }
     }
 #pragma warning restore CA1823 // Avoid unused private fields
-#pragma warning restore CA1815 // Avoid unused private fields
+#pragma warning restore CA1815 // should implement equals
 
-    public struct ButtonState : IEquatable<ButtonState>
+    public record struct ButtonState : IEquatable<ButtonState>
     {
         public bool Pressed { get; set; }
         public bool Touched { get; set; }
         public bool JustPressed { get; set; }
         public bool JustReleased { get; set; }
         public double Value { get; set; }
-
-        public readonly override bool Equals(object? obj)
-        {
-            return obj is ButtonState state && Equals(state);
-        }
-
-        public readonly bool Equals(ButtonState state)
-        {
-            return Pressed == state.Pressed &&
-                   Touched == state.Touched &&
-                   JustPressed == state.JustPressed &&
-                   Value == state.Value;
-        }
-
-        public readonly override int GetHashCode()
-        {
-#if NETSTANDARD2_0
-            var hashCode = new HashCode();
-            hashCode.Add(Pressed);
-            hashCode.Add(Touched);
-            hashCode.Add(JustPressed);
-            hashCode.Add(Value);
-            return hashCode.ToHashCode();
-#else
-            return HashCode.Combine(Pressed, Touched, JustPressed, Value);
-#endif
-        }
-
-        public static bool operator ==(ButtonState left, ButtonState right)
-        {
-            return left.Equals(right);
-        }
-
-        public static bool operator !=(ButtonState left, ButtonState right)
-        {
-            return !(left == right);
-        }
     }
 }

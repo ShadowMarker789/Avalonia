@@ -4,14 +4,16 @@ using System.Diagnostics;
 using System.Threading;
 using Avalonia.Input;
 using Avalonia.Win32.Interop;
+using Windows.Win32;
+using Windows.Win32.UI.Input;
+using Windows.Win32.Foundation;
+using Windows.Win32.Storage.FileSystem;
+using Windows.Win32.UI.Input.XboxController;
 
 namespace Avalonia.Win32.Input
 {
     public class WindowsGamepadManager : GamepadManager
     {
-        private const int OPEN_EXISTING = 3;
-        private const int FILE_SHARE_READ = 0x00000001;
-        private const int FILE_SHARE_WRITE = 0x00000002;
         private const uint GENERIC_READ = (0x80000000);
         private const int GENERIC_WRITE = (0x40000000);
         private const ushort HID_USAGE_PAGE_GENERIC = ((ushort)(0x01));
@@ -20,10 +22,6 @@ namespace Avalonia.Win32.Input
         private const ushort HID_USAGE_GENERIC_MULTI_AXIS_CONTROLLER = ((ushort)(0x08));
         private const nint GIDC_ARRIVAL = 1;
         private const nint GIDC_REMOVAL = 2;
-        private const int RID_INPUT = 0x10000003;
-        private const int RIDEV_INPUTSINK = 0x00000100;
-        private const int RIDEV_DEVNOTIFY = 0x00002000;
-        private const int RIDI_DEVICENAME = 0x20000007;
         private const int XINPUT_MAX_DEVICES = 4;
         private static readonly IntPtr INVALID_HANDLE_VALUE = new IntPtr(-1);
         private SimpleWindow? _simpleWindow;
@@ -56,15 +54,15 @@ namespace Avalonia.Win32.Input
             {
                 spanRids[i].usUsagePage = HID_USAGE_PAGE_GENERIC;
                 // if you add these two options together, then you get input even out of focus 
-                spanRids[i].dwFlags = RIDEV_INPUTSINK | RIDEV_DEVNOTIFY;
-                spanRids[i].hwndTarget = _simpleWindow.Handle;
+                spanRids[i].dwFlags = RAWINPUTDEVICE_FLAGS.RIDEV_INPUTSINK | RAWINPUTDEVICE_FLAGS.RIDEV_DEVNOTIFY;
+                spanRids[i].hwndTarget = (HWND)_simpleWindow.Handle;
             }
 
             spanRids[0].usUsage = HID_USAGE_GENERIC_GAMEPAD;
             spanRids[1].usUsage = HID_USAGE_GENERIC_JOYSTICK;
             spanRids[2].usUsage = HID_USAGE_GENERIC_MULTI_AXIS_CONTROLLER;
 
-            var registerReturn = UnmanagedMethods.RegisterRawInputDevices(rids, 3, (uint)sizeof(RAWINPUTDEVICE));
+            var registerReturn = PInvoke.RegisterRawInputDevices(rids, 3, (uint)sizeof(RAWINPUTDEVICE));
             if (registerReturn == 0x0)
             {
                 // TODO: Log failure to register raw input devices 
@@ -95,7 +93,7 @@ namespace Avalonia.Win32.Input
                         uint rwInputSize = (uint)sizeof(RAWINPUT);
                         // Turns out this isn't an HRESULT (haha)
                         // See: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getrawinputdata
-                        var result = UnmanagedMethods.GetRawInputData(lparam, RID_INPUT, (IntPtr)(&rwInput), &rwInputSize, (uint)(sizeof(RAWINPUTHEADER)));
+                        var result = PInvoke.GetRawInputData((HRAWINPUT)lparam, RAW_INPUT_DATA_COMMAND_FLAGS.RID_INPUT, &rwInput, &rwInputSize, (uint)(sizeof(RAWINPUTHEADER)));
                         if (result == unchecked((uint)-1)) // yeah, apparently it is just -1 but a uint 
                         {
                             // an error has occurred 
@@ -139,11 +137,11 @@ namespace Avalonia.Win32.Input
 
             // get the device ID 
             uint nameSize = 0;
-            UnmanagedMethods.GetRawInputDeviceInfoW(deviceHandle, RIDI_DEVICENAME, null, &nameSize);
+            PInvoke.GetRawInputDeviceInfo((HANDLE)deviceHandle, RAW_INPUT_DEVICE_INFO_COMMAND.RIDI_DEVICENAME, null, &nameSize);
             // this stack allocation is fine since the current thread is NOT the Dispatcher thread
             // AND we're very shallow in our calling stack
             char* pDeviceName = stackalloc char[(int)nameSize];
-            UnmanagedMethods.GetRawInputDeviceInfoW(deviceHandle, RIDI_DEVICENAME, pDeviceName, &nameSize);
+            PInvoke.GetRawInputDeviceInfo((HANDLE)deviceHandle, RAW_INPUT_DEVICE_INFO_COMMAND.RIDI_DEVICENAME, pDeviceName, &nameSize);
             // note that deviceName is the really long //?/HID style name 
             // See https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getrawinputdeviceinfow
             // And windows guarantees that the same device will have the same device-name 
@@ -159,7 +157,7 @@ namespace Avalonia.Win32.Input
             }
             if (data is null)
             {
-                var handle = UnmanagedMethods.CreateFileW((ushort*)pDeviceName, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, null, OPEN_EXISTING, 0x0, IntPtr.Zero);
+                var handle = PInvoke.CreateFile(new PCWSTR(pDeviceName), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_MODE.FILE_SHARE_READ | FILE_SHARE_MODE.FILE_SHARE_WRITE, null, FILE_CREATION_DISPOSITION.OPEN_EXISTING, 0x0, HANDLE.Null);
                 if (handle == IntPtr.Zero || handle == INVALID_HANDLE_VALUE)
                 {
                     return;
@@ -169,7 +167,7 @@ namespace Avalonia.Win32.Input
                 // and if you're wondering where 4092 comes from 
                 // https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/hidsdi/nf-hidsdi-hidd_getproductstring
                 char* pwstrProductString = stackalloc char[2046];
-                if (UnmanagedMethods.HidD_GetProductString(handle, pwstrProductString, 4092) == 0)
+                if (PInvoke.HidD_GetProductString(handle, pwstrProductString, 4092) == 0)
                 {
                     // TODO: Log failure
                     UnmanagedMethods.CloseHandle(handle);
@@ -344,46 +342,46 @@ namespace Avalonia.Win32.Input
             public uint XInputDwPacketNumber { get; set; }
         }
 
-        private ushort XInputFlagFromGamepadButton(GamepadButton button)
+        private XINPUT_GAMEPAD_BUTTON_FLAGS XInputFlagFromGamepadButton(GamepadButton button)
         {
             switch (button)
             {
                 case GamepadButton.Button0:
-                    return 4096;
+                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)4096;
                 case GamepadButton.Button1:
-                    return 8192;
+                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)8192;
                 case GamepadButton.Button2:
-                    return 16384;
+                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)16384;
                 case GamepadButton.Button3:
-                    return 32768;
+                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)32768;
                 case GamepadButton.Button4:
-                    return 256;
+                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)256;
                 case GamepadButton.Button5:
-                    return 512;
+                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)512;
                 case GamepadButton.Button6:
                 case GamepadButton.Button7:
                 default:
                     throw new Exception("Okay, these aren't XInput buttons, sorry! Programmer error!");
                 case GamepadButton.Button8:
-                    return 32;
+                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)32;
                 case GamepadButton.Button9:
-                    return 16;
+                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)16;
                 case GamepadButton.Button10:
-                    return 64;
+                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)64;
                 case GamepadButton.Button11:
-                    return 128;
+                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)128;
                 case GamepadButton.Button12:
-                    return 1;
+                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)1;
                 case GamepadButton.Button13:
-                    return 2;
+                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)2;
                 case GamepadButton.Button14:
-                    return 4;
+                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)4;
                 case GamepadButton.Button15:
-                    return 8;
+                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)8;
             }
         }
 
-        private void SetButtonFromXInput(ref GamepadState target, GamepadButton button, ushort xinputButtons)
+        private void SetButtonFromXInput(ref GamepadState target, GamepadButton button, XINPUT_GAMEPAD_BUTTON_FLAGS xinputButtons)
         {
             var flag = XInputFlagFromGamepadButton(button);
             var previousState = target.GetButtonState(button);
@@ -443,7 +441,7 @@ namespace Avalonia.Win32.Input
             }
         }
 
-        private bool IsMatch(ushort buttonState, ushort stateToCheck) => (buttonState & stateToCheck) == stateToCheck;
+        private bool IsMatch(XINPUT_GAMEPAD_BUTTON_FLAGS buttonState, XINPUT_GAMEPAD_BUTTON_FLAGS stateToCheck) => (buttonState & stateToCheck) == stateToCheck;
 
         private Vector DualAxisHandle(short xAxis, short yAxis, double deadZone)
         {

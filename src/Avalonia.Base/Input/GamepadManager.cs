@@ -14,14 +14,15 @@ namespace Avalonia.Input
     public interface IGamepadManager
     {
         /// <summary>
-        /// Obtains a stream of gamepad events. 
+        /// Obtains the stream of gamepad events. 
         /// </summary>
         IObservable<GamepadEventArgs> GamepadStream { get; }
         /// <summary>
-        /// 
+        /// Obtains a list of the most recent event of each "known" device.<br/>
+        /// A device is "known" if it has been seen at least once. 
         /// </summary>
         /// <returns></returns>
-        IReadOnlyList<GamepadState> GetSnapshot();
+        IReadOnlyList<GamepadEventArgs> GetSnapshot();
     }
 
     public abstract class GamepadManager : IGamepadManager
@@ -38,20 +39,20 @@ namespace Avalonia.Input
         }
 
         private readonly LightweightSubject<GamepadEventArgs> _gamepadStream = new();
-        protected readonly List<GamepadState> _currentState = [];
+        protected readonly List<GamepadEventArgs> _currentState = [];
 
         public void PushGamepadEvent(GamepadEventArgs args)
         {
             if (_currentState.Count <= args.Device)
             {
-                _currentState.Add(args.State);
+                _currentState.Add(args);
             }
             else
             {
-                _currentState[args.Device] = args.State;
+                _currentState[args.Device] = args;
             }
 
-            // question - if I use Post instead of Invoke will events end up out of order?
+            // Safe to use Post, for the same priority this will preserve event order 
             Dispatcher.UIThread.Post(() =>
             {
                 _gamepadStream.OnNext(args);
@@ -59,7 +60,7 @@ namespace Avalonia.Input
         }
 
         public IObservable<GamepadEventArgs> GamepadStream => _gamepadStream;
-        public IReadOnlyList<GamepadState> GetSnapshot() => [.. _currentState];
+        public IReadOnlyList<GamepadEventArgs> GetSnapshot() => [.. _currentState];
 
     }
 }
