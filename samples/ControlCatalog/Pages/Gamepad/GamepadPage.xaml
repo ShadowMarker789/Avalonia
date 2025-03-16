@@ -3,6 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:local="using:ControlCatalog.Pages"
+             xmlns:game="using:ControlCatalog.Pages.Gamepad"
              xmlns:converters="using:ControlCatalog.Converter"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="ControlCatalog.Pages.GamepadPage"
@@ -21,6 +22,9 @@
             </ItemsControl.ItemsPanel>
           </ItemsControl>
         </DockPanel>
+      </TabItem>
+      <TabItem Header="Game Demo">
+        <game:GameDemo/>
       </TabItem>
     </TabControl>
   </Grid>
