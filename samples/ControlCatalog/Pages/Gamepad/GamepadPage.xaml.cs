@@ -8,7 +8,7 @@ using Avalonia.Markup.Xaml;
 
 namespace ControlCatalog.Pages
 {
-    public partial class GamepadPage : UserControl, IObserver<GamepadEventArgs>
+    public partial class GamepadPage : UserControl, IObserver<GamepadUpdateArgs>
     {
 
         /// <summary>
@@ -39,7 +39,7 @@ namespace ControlCatalog.Pages
 
         public void OnError(Exception error) { }
 
-        public void OnNext(GamepadEventArgs value)
+        public void OnNext(GamepadUpdateArgs value)
         {
             if (Gamepads.Count <= value.Device)
             {
@@ -56,7 +56,7 @@ namespace ControlCatalog.Pages
         {
             if (!Design.IsDesignMode)
             {
-                GamepadManager.Instance?.GamepadStream?.Subscribe(this);
+                TopLevel.GetTopLevel(this)?.GamepadManager?.GamepadStream?.Subscribe(this);
             }
         }
 

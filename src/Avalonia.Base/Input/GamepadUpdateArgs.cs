@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -10,7 +11,21 @@ using Avalonia.Interactivity;
 
 namespace Avalonia.Input
 {
-    public class GamepadEventArgs : RoutedEventArgs
+    public class GamepadInteractionEventArgs : RoutedEventArgs
+    {
+        public GamepadInteractionEventArgs(GamepadUpdateArgs args, object? source) : base(GamepadManager.GamepadInteractionEvent, source)
+        {
+            GamepadUpdateArgs = args;
+            Source = source;
+        }
+
+        public GamepadUpdateArgs GamepadUpdateArgs { get; set; }
+    }
+
+    /// <summary>
+    /// Update arguments for the Gamepad, if Handled will not be routed onto the Gui for navigation and interaction. 
+    /// </summary>
+    public class GamepadUpdateArgs : HandledEventArgs
     {
         /// <summary>
         /// Represents the "device index". A device that has been lost and reconnected will have the same index.

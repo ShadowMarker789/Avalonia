@@ -33,7 +33,6 @@ namespace Avalonia.Win32.Input
 
         public WindowsGamepadManager()
         {
-            Instance = this;
             _messagePumpThread = new Thread(MessagePumpThreadStart);
             _messagePumpThread.SetApartmentState(ApartmentState.STA);
             _messagePumpThread.Name = $"{nameof(WindowsGamepadManager)}::{nameof(MessagePumpThreadStart)}";
@@ -202,11 +201,11 @@ namespace Avalonia.Win32.Input
                 _knownDevices.Add(data);
 
                 Trace.WriteLine($"New Device! [{humanName}] is {(isXInputDevice ? "" : "NOT ")}an XInput device!");
-                data.EventTracking = GamepadEventArgs.GamepadEventType.Initialized;
+                data.EventTracking = GamepadUpdateArgs.GamepadEventType.Initialized;
             }
             else
             {
-                data.EventTracking = GamepadEventArgs.GamepadEventType.Reconnected;
+                data.EventTracking = GamepadUpdateArgs.GamepadEventType.Reconnected;
                 data.LastHandle = deviceHandle;
                 Trace.WriteLine($"Recognized Device! [{data.HumanName}] is {(data.IsXInputDevice ? "" : "NOT ")} an XInput device!");
             }
@@ -224,7 +223,7 @@ namespace Avalonia.Win32.Input
                 if (data.LastHandle == deviceHandle)
                 {
                     data.LastState = default;
-                    data.EventTracking = GamepadEventArgs.GamepadEventType.Disconnected;
+                    data.EventTracking = GamepadUpdateArgs.GamepadEventType.Disconnected;
                     data.IsConnected = false;
                     PushUpdate(data);
                 }
@@ -271,7 +270,7 @@ namespace Avalonia.Win32.Input
                             if (data.XInputDwPacketNumber != state.dwPacketNumber)
                             {
                                 data.XInputDwPacketNumber = state.dwPacketNumber;
-                                data.EventTracking = GamepadEventArgs.GamepadEventType.StateChange;
+                                data.EventTracking = GamepadUpdateArgs.GamepadEventType.StateChange;
                                 var gamepadState = new GamepadState();
                                 gamepadState.LeftAnalogStick = DualAxisHandle(state.Gamepad.sThumbLX, state.Gamepad.sThumbLY, GamepadAnalogStickDeadZone);
                                 gamepadState.RightAnalogStick = DualAxisHandle(state.Gamepad.sThumbRX, state.Gamepad.sThumbRY, GamepadAnalogStickDeadZone);
@@ -306,14 +305,13 @@ namespace Avalonia.Win32.Input
         private void PushUpdate(InternalGamepadData data)
         {
             PushGamepadEvent(
-                new GamepadEventArgs()
+                new GamepadUpdateArgs()
                 {
                     Connected = data.IsConnected,
                     Device = data.Index,
                     HumanName = data.HumanName,
                     Id = data.Id,
                     Timestamp = DateTime.Now,
-                    Source = this,
                     EventType = data.EventTracking,
                     State = data.LastState,
                 }
@@ -334,7 +332,7 @@ namespace Avalonia.Win32.Input
             public string HumanName { get; set; }
             public bool IsXInputDevice { get; set; }
             public bool IsConnected { get; set; }
-            public GamepadEventArgs.GamepadEventType EventTracking { get; set; }
+            public GamepadUpdateArgs.GamepadEventType EventTracking { get; set; }
             public GamepadState LastState { get; set; }
             public DateTime Timestamp { get; set; }
             public IntPtr LastHandle { get; set; }
@@ -344,41 +342,24 @@ namespace Avalonia.Win32.Input
 
         private XINPUT_GAMEPAD_BUTTON_FLAGS XInputFlagFromGamepadButton(GamepadButton button)
         {
-            switch (button)
+            return button switch
             {
-                case GamepadButton.Button0:
-                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)4096;
-                case GamepadButton.Button1:
-                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)8192;
-                case GamepadButton.Button2:
-                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)16384;
-                case GamepadButton.Button3:
-                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)32768;
-                case GamepadButton.Button4:
-                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)256;
-                case GamepadButton.Button5:
-                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)512;
-                case GamepadButton.Button6:
-                case GamepadButton.Button7:
-                default:
-                    throw new Exception("Okay, these aren't XInput buttons, sorry! Programmer error!");
-                case GamepadButton.Button8:
-                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)32;
-                case GamepadButton.Button9:
-                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)16;
-                case GamepadButton.Button10:
-                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)64;
-                case GamepadButton.Button11:
-                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)128;
-                case GamepadButton.Button12:
-                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)1;
-                case GamepadButton.Button13:
-                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)2;
-                case GamepadButton.Button14:
-                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)4;
-                case GamepadButton.Button15:
-                    return (XINPUT_GAMEPAD_BUTTON_FLAGS)8;
-            }
+                GamepadButton.Button0 => XINPUT_GAMEPAD_BUTTON_FLAGS.XINPUT_GAMEPAD_A,
+                GamepadButton.Button1 => XINPUT_GAMEPAD_BUTTON_FLAGS.XINPUT_GAMEPAD_B,
+                GamepadButton.Button2 => XINPUT_GAMEPAD_BUTTON_FLAGS.XINPUT_GAMEPAD_X,
+                GamepadButton.Button3 => XINPUT_GAMEPAD_BUTTON_FLAGS.XINPUT_GAMEPAD_Y,
+                GamepadButton.Button4 => XINPUT_GAMEPAD_BUTTON_FLAGS.XINPUT_GAMEPAD_LEFT_SHOULDER,
+                GamepadButton.Button5 => XINPUT_GAMEPAD_BUTTON_FLAGS.XINPUT_GAMEPAD_RIGHT_SHOULDER,
+                GamepadButton.Button8 => XINPUT_GAMEPAD_BUTTON_FLAGS.XINPUT_GAMEPAD_BACK,
+                GamepadButton.Button9 => XINPUT_GAMEPAD_BUTTON_FLAGS.XINPUT_GAMEPAD_START,
+                GamepadButton.Button10 => XINPUT_GAMEPAD_BUTTON_FLAGS.XINPUT_GAMEPAD_LEFT_THUMB,
+                GamepadButton.Button11 => XINPUT_GAMEPAD_BUTTON_FLAGS.XINPUT_GAMEPAD_RIGHT_THUMB,
+                GamepadButton.Button12 => XINPUT_GAMEPAD_BUTTON_FLAGS.XINPUT_GAMEPAD_DPAD_UP,
+                GamepadButton.Button13 => XINPUT_GAMEPAD_BUTTON_FLAGS.XINPUT_GAMEPAD_DPAD_DOWN,
+                GamepadButton.Button14 => XINPUT_GAMEPAD_BUTTON_FLAGS.XINPUT_GAMEPAD_DPAD_LEFT,
+                GamepadButton.Button15 => XINPUT_GAMEPAD_BUTTON_FLAGS.XINPUT_GAMEPAD_DPAD_RIGHT,
+                _ => throw new Exception("Okay, these aren't XInput buttons, sorry! Programmer error!"),
+            };
         }
 
         private void SetButtonFromXInput(ref GamepadState target, GamepadButton button, XINPUT_GAMEPAD_BUTTON_FLAGS xinputButtons)

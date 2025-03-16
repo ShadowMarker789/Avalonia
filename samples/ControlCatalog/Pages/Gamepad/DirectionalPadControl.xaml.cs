@@ -51,7 +51,7 @@ namespace ControlCatalog.Pages
             AvaloniaXamlLoader.Load(this);
         }
 
-        public void ReceiveUpdate(GamepadEventArgs args)
+        public void ReceiveUpdate(GamepadUpdateArgs args)
         {
             var state = args.State;
             PadUp = state.GetButtonState(GamepadButton.Button12).Pressed;

@@ -16,32 +16,21 @@ namespace Avalonia.Input
         /// <summary>
         /// Obtains the stream of gamepad events. 
         /// </summary>
-        IObservable<GamepadEventArgs> GamepadStream { get; }
-        /// <summary>
-        /// Obtains a list of the most recent event of each "known" device.<br/>
-        /// A device is "known" if it has been seen at least once. 
-        /// </summary>
-        /// <returns></returns>
-        IReadOnlyList<GamepadEventArgs> GetSnapshot();
+        IObservable<GamepadUpdateArgs> GamepadStream { get; }
     }
 
     public abstract class GamepadManager : IGamepadManager
     {
-        /// <summary>
-        /// The static entry-point to interacting with Gamepads. This is null if the current platform does not have a Gamepad implementation. 
-        /// </summary>
-        public static GamepadManager? Instance { get; protected set; }
-
-        public static readonly RoutedEvent GamepadStateChanged;
+        public static readonly RoutedEvent GamepadInteractionEvent;
         static GamepadManager()
         {
-            GamepadStateChanged = RoutedEvent.Register<GamepadManager, GamepadEventArgs>(nameof(GamepadStateChanged), RoutingStrategies.Tunnel | RoutingStrategies.Bubble);
+            GamepadInteractionEvent = RoutedEvent.Register<GamepadManager, GamepadInteractionEventArgs>(nameof(GamepadInteractionEvent), RoutingStrategies.Tunnel | RoutingStrategies.Bubble);
         }
 
-        private readonly LightweightSubject<GamepadEventArgs> _gamepadStream = new();
-        protected readonly List<GamepadEventArgs> _currentState = [];
+        private readonly LightweightSubject<GamepadUpdateArgs> _gamepadStream = new();
+        protected readonly List<GamepadUpdateArgs> _currentState = [];
 
-        public void PushGamepadEvent(GamepadEventArgs args)
+        public void PushGamepadEvent(GamepadUpdateArgs args)
         {
             if (_currentState.Count <= args.Device)
             {
@@ -59,8 +48,8 @@ namespace Avalonia.Input
             });
         }
 
-        public IObservable<GamepadEventArgs> GamepadStream => _gamepadStream;
-        public IReadOnlyList<GamepadEventArgs> GetSnapshot() => [.. _currentState];
+        public IObservable<GamepadUpdateArgs> GamepadStream => _gamepadStream;
+        public IReadOnlyList<GamepadUpdateArgs> GetSnapshot() => [.. _currentState];
 
     }
 }

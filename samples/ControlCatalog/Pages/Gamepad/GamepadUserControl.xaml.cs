@@ -126,7 +126,7 @@ namespace ControlCatalog.Pages
             DisconnectedTextBlock = this.Find<TextBlock>(nameof(DisconnectedTextBlock))!;
         }
 
-        public void ReceiveUpdate(GamepadEventArgs args)
+        public void ReceiveUpdate(GamepadUpdateArgs args)
         {
             var state = args.State;
             LeftStick = state.LeftAnalogStick;
